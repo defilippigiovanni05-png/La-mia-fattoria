@@ -165,7 +165,7 @@ const RECIPES=[
 const BUILD={
   pen:{n:'Recinto',e:'🐾',w:6,h:6,cost:{cr:120},d:'Recinto 6×6 con mangiatoia, fino a 10 animali di qualsiasi specie. Con la stalla diventano di più.'},
   lab:{n:'Laboratorio',e:'🏭',w:3,h:3,cost:{cr:350},d:'Trasforma carne e latte in salsicce, hamburger, arrosticini, crocchette e formaggio, che valgono molto di più.'},
-  mine:{n:'Miniera',e:'⛏️',w:3,h:3,cost:{cr:400,legna:30},d:'Tieni premuto il tasto davanti all’ingresso per scavare: trovi vermi per pescare e, più raramente, carbone.'},
+  mine:{n:'Miniera',e:'⛏️',w:3,h:3,cost:{cr:400,legna:30},d:'Entri dentro con il tasto azione e tieni premuto Scava: trovi vermi per pescare e, più raramente, carbone.'},
   fab:{n:'Fabbrica',e:'⚙️',w:3,h:3,cost:{cr:600,mattoni:8,legna:40},d:'Crea lana raffinata, filo di lana, torce e la canna da pesca.'}
 };
 const BARN=[null,
@@ -374,7 +374,7 @@ function targetLabel(t){
   if(s.type=='pen'){const an=penAnimals(s.id);return ['🐾',`Recinto ${s.num} (${an.length})`];}
   if(s.type=='lab')return ['🏭','Laboratorio'];
   if(s.type=='fab')return ['⚙️','Fabbrica'];
-  if(s.type=='mine')return ['⛏️','Scava (tieni premuto)'];
+  if(s.type=='mine')return ['⛏️','Entra in miniera'];
   return ['✋',''];
 }
 const repeatable=t=>t&&(t.k=='grass'||t.k=='tree');
@@ -554,7 +554,7 @@ function confirmPlace(){
   if(t=='pen'){s.hay=0;s.barn=0;}
   if(t=='lab'||t=='fab'){s.q=[];s.qs=0;}
   G.structs.push(s);rebuildOcc();computeSigns();unstuckPlayer();burst(s.x+s.w/2,s.y+s.h/2,'#e9d6a8',24,4);sfx('buy');
-  toast(`${b.e} ${b.n} costruito!`+(t=='pen'?' Ora compra gli animali al Mercato':t=='mine'?' Tieni premuto il tasto davanti per scavare':''));
+  toast(`${b.e} ${b.n} costruito!`+(t=='pen'?' Ora compra gli animali al Mercato':t=='mine'?' Premi il tasto davanti all’ingresso per entrare':''));
   cancelPlace();saveLocal();
 }
 function cancelPlace(){PL=null;$('placebar').classList.add('hidden');}
@@ -697,7 +697,7 @@ function menuHTML(){
   <button class="btn r wide" data-a="reset">${PANEL.confirm?'⚠️ Sicuro? Tocca ancora per cancellare tutto':'🗑️ Nuova partita'}</button>
   <p class="sm">Il gioco si salva da solo ogni pochi secondi${DBREF?' e anche sul tuo account, così lo ritrovi su altri dispositivi':' su questo dispositivo'}.</p>
   <div class="sec">Come si gioca</div>
-  <p class="sm">🌾 L'erba ricresce in circa un minuto: quando ha le punte gialle è pronta da tagliare.<br>🪓 Gli alberi ricrescono dal ceppo in circa 2 minuti.<br>🐾 Metti maschio e femmina della stessa specie nello stesso recinto, riempi la mangiatoia e premi "Fai accoppiare": dopo pochi secondi nascono i cuccioli.<br>🔪 Gli adulti si macellano per la carne, che al Laboratorio diventa salsicce e altro.<br>🧱 I mattoni si comprano solo al Mercato: servono per Fabbrica, stalle e strade.<br>🏚️ La stalla si attacca sopra il recinto: più posti, più carne, più prodotti. Ha 3 livelli.<br>⛏️ In Miniera tieni premuto per scavare: vermi e, raramente, carbone.<br>⚙️ In Fabbrica crei torce (legna + carbone) e la canna da pesca.<br>🎣 Vai davanti a un laghetto con la canna e i vermi per pescare.<br>🔥 Le torce illuminano la fattoria di notte: mettile dallo zaino.<br>🏷️ I cartelli sul confine ti fanno comprare il terreno accanto.</p>`;
+  <p class="sm">🌾 L'erba ricresce in circa un minuto: quando ha le punte gialle è pronta da tagliare.<br>🪓 Gli alberi ricrescono dal ceppo in circa 2 minuti.<br>🐾 Metti maschio e femmina della stessa specie nello stesso recinto, riempi la mangiatoia e premi "Fai accoppiare": dopo pochi secondi nascono i cuccioli.<br>🔪 Gli adulti si macellano per la carne, che al Laboratorio diventa salsicce e altro.<br>🧱 I mattoni si comprano solo al Mercato: servono per Fabbrica, stalle e strade.<br>🏚️ La stalla si attacca sopra il recinto: più posti, più carne, più prodotti. Ha 5 livelli.<br>⛏️ Entra in Miniera e tieni premuto Scava: vermi e, raramente, carbone. Per uscire tocca Esci o muoviti.<br>⚙️ In Fabbrica crei torce (legna + carbone) e la canna da pesca.<br>🎣 Vai davanti a un laghetto con la canna e i vermi per pescare.<br>🔥 Le torce illuminano la fattoria di notte: mettile dallo zaino.<br>🏷️ I cartelli sul confine ti fanno comprare il terreno accanto.</p>`;
   return h;
 }
 $('pbody').addEventListener('click',e=>{
