@@ -18,11 +18,15 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;overflow:hidden;background:#24361b;font-family:Nunito,system-ui,-apple-system,sans-serif;user-select:none;-webkit-user-select:none;touch-action:none;overscroll-behavior:none}
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
-#top{position:fixed;top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));display:flex;gap:6px;align-items:center;pointer-events:none;z-index:5;flex-wrap:nowrap}
+#top{position:fixed;top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:calc(8px + env(safe-area-inset-right));display:flex;gap:6px;align-items:flex-start;pointer-events:none;z-index:5;flex-wrap:nowrap}
 .pill{background:rgba(255,248,231,.96);border:2px solid #7a5230;border-radius:999px;padding:5px 11px;font-weight:900;color:#4a3018;font-size:15px;box-shadow:0 3px 0 rgba(0,0,0,.22);white-space:nowrap}
 .sp{flex:1}
 .ib{pointer-events:auto;width:44px;height:44px;border-radius:50%;border:2px solid #7a5230;background:#fff8e7;font-size:21px;box-shadow:0 3px 0 rgba(0,0,0,.22);cursor:pointer;padding:0}
 .ib:active{transform:translateY(2px)}
+#pills{display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0}
+#topbtns{display:flex;gap:6px;pointer-events:auto;flex:none}
+#bTorch{position:fixed;right:calc(18px + env(safe-area-inset-right));bottom:calc(236px + env(safe-area-inset-bottom));z-index:6;border:2px solid #7a5230;background:#ffe2b0;border-radius:22px;padding:8px 12px;font-family:inherit;font-weight:900;font-size:16px;color:#4a3018;box-shadow:0 3px 0 rgba(0,0,0,.22);cursor:pointer}
+@media (max-height:500px){#bTorch{bottom:calc(160px + env(safe-area-inset-bottom))}}
 #quest{position:fixed;top:calc(62px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:max-content;max-width:min(560px,92vw);background:rgba(55,36,18,.86);color:#fff6d8;padding:7px 14px;border-radius:12px;font-weight:800;font-size:13.5px;text-align:center;z-index:4;pointer-events:none;line-height:1.3}
 #quest b{color:#ffd45e}
 #toasts{position:fixed;bottom:calc(132px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;z-index:40;pointer-events:none;width:min(560px,70vw)}
@@ -94,16 +98,20 @@ select{font-family:inherit;font-weight:800;font-size:14px;padding:7px;border-rad
 <canvas id="c"></canvas>
 
 <div id="top">
+  <div id="pills">
   <div class="pill" id="hCr">💰 0</div>
   <div class="pill" id="hQuick">🌾 0 · 🪵 0</div>
   <div class="pill" id="hHp">❤️ 10</div>
   <div class="pill" id="hClock">☀️ 08:00</div>
-  <div class="sp"></div>
+  </div>
+  <div id="topbtns">
   <button class="ib" id="bInv" title="Zaino (I)">🎒</button>
   <button class="ib" id="bMenu" title="Menu">⚙️</button>
+  </div>
 </div>
 <div id="quest"></div>
 <div id="toasts"></div>
+<button id="bTorch" class="hidden" title="Metti una torcia">🔥 0</button>
 <div id="zoom"><button id="zin">+</button><button id="zout">−</button></div>
 <button id="act" class="off"><span id="actI">✋</span><span id="actL">Avvicinati</span></button>
 <div id="keyhint" class="hidden">Muoviti: WASD / frecce · Azione: E o Spazio (tieni premuto)</div>
@@ -339,7 +347,7 @@ function computeSigns(){
 function buyable(p){if(OWN.has(p))return false;const px=p%PN,py=Math.floor(p/PN);return [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{const qx=px+dx,qy=py+dy;return qx>=0&&qy>=0&&qx<PN&&qy<PN&&OWN.has(qy*PN+qx);});}
 const plotPrice=()=>{const k=G.owned.length;const pk=q=>500*Math.pow(1.45,q-1)+250*(q-1)*(q-1);const v=k<=24?pk(k):pk(24)*Math.pow(1.15,k-24);const m=v<5000?50:v<50000?500:5000;return Math.round(v/m)*m;};
 
-const SEAS=['Primavera','Estate','Autunno','Inverno'],SEAI=['🌸','☀️','🍂','❄️'],SDAYS=4,YEAR=DAY*SDAYS*4;
+const SEAS=['Primavera','Estate','Autunno','Inverno'],SEAI=['🌸','☀️','🍂','❄️'],SDAYS=20,YEAR=DAY*SDAYS*4;
 const season=(t=G.t)=>Math.floor(t/(DAY*SDAYS))%4;
 function growT(t){if(t<0)return t;const y=Math.floor(t/YEAR),m=t-y*YEAR;return y*DAY*SDAYS*3+Math.min(m,DAY*SDAYS*3);}
 function snowAmt(){if(season()!=3)return 0;const m=(G.t%(DAY*SDAYS))/DAY;return clamp(Math.min(m/.4,(SDAYS-m)/.4),0,1);}
@@ -408,7 +416,7 @@ function targetLabel(t){
   if(t.k=='sign'){const p=plotPrice();return ['🏷️',`Compra terreno ${fmt(p)}💰`];}
   const s=t.s;
   if(s.type=='shop')return ['🛒','Apri il Mercato'];
-  if(s.type=='house')return ['🏠','Entra in casa'];
+  if(s.type=='house')return canSleep()?['😴','Entra a dormire']:['🏠','Entra in casa'];
   if(s.type=='pen'){const an=penAnimals(s.id);return ['🐾',`Recinto ${s.num} (${an.length})`];}
   if(s.type=='lab')return ['🏭','Laboratorio'];
   if(s.type=='fab')return ['⚙️','Fabbrica'];
@@ -435,7 +443,7 @@ function doAction(t){
     if(s.type=='mine'){enterMine(s);return;}
     ACT.held=false;
     if(s.type=='shop')openPanel({k:'shop',tab:'sell'});
-    else if(s.type=='house')openPanel({k:'menu'});
+    else if(s.type=='house')openPanel({k:'menu',house:1});
     else if(s.type=='pen')openPanel({k:'pen',id:s.id});
     else if(s.type=='lab'||s.type=='fab')openPanel({k:'lab',id:s.id});
     else if(PRODS[s.type])prodCollect(s);
@@ -581,7 +589,7 @@ function drawOrchard(s){
 function drawBadge(s){const X=sx(s.x+s.w/2),Y=sy(s.y)-ts*.55;ctx.font=`${Math.round(ts*.26)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⭐'.repeat((s.lv||1)-1),X,Y);}
 /* ---- mostri notturni ---- */
 const HPMAX=10;let MON=[],hurtT=-99,lastSpawn=0,deadFlash=0;
-const MONS={lupo:{n:'Lupo',hp:3,sp:2.7,dmg:1,drop:'pelliccia'},ombra:{n:'Ombra',hp:4,sp:1.7,dmg:2,drop:'essenza'}};
+const MONS={lupo:{n:'Lupo',hp:8,sp:2.9,dmg:2,cd:.85,drop:'pelliccia'},ombra:{n:'Ombra',hp:12,sp:1.9,dmg:3,cd:1,drop:'essenza'}};
 const hourNow=()=>(6+(G.t%DAY)/DAY*24)%24;
 const isNight=()=>{const h=hourNow();return h>=19.5||h<5.3;};
 function litAt(x,y,extra=0){
@@ -625,7 +633,7 @@ function monUpdate(dt){
     if(victim&&Math.hypot(victim.x-m.x,victim.y-m.y)<.5){m.at+=dt;if(m.at>1.3){m.at=0;const s=S(victim.pen);G.animals=G.animals.filter(a=>a!==victim);inc('lost');burst(victim.x,victim.y-.3,'#c0392b',14,2.5);sfx('kill');
       toast(`${m.k=='lupo'?'🐺 Un lupo':'👤 Un\u2019ombra'} ha ucciso ${aName(victim).toLowerCase()} nel Recinto ${s?s.num:''}! Metti una torcia vicino al recinto`);if(m.k=='lupo')m.st='flee';m.tg=null;}}
     // attacco giocatore
-    else if(m.tg&&m.tg.pl&&d<.75&&MINE.st=='out'&&!PANEL){m.at+=dt;if(m.at>1){m.at=0;hurtPlayer(D.dmg,m);}}
+    else if(m.tg&&m.tg.pl&&d<.75&&MINE.st=='out'&&!PANEL){m.at+=dt;if(m.at>D.cd){m.at=0;hurtPlayer(D.dmg,m);}}
     else m.at=Math.max(0,m.at-dt);
   }
   MON=MON.filter(m=>m.hp>0&&m.fade<1);
@@ -944,8 +952,15 @@ function invHTML(){
   if(tl.length)h+=`<div class="sec">Attrezzi</div><p class="sm">${tl.join(' · ')}</p>`;
   return h;
 }
+function canSleep(){const h=hourNow();return h>=18||h<5.5;}
+function goSleep(){closePanel();SLEEP={t:0,done:false};ACT.held=false;JOY.active=false;sfx('love');}
+let SLEEP=null;
+function sleepUpdate(dt){SLEEP.t+=dt;if(!SLEEP.done&&SLEEP.t>1.2){SLEEP.done=true;G.t=Math.ceil(G.t/DAY)*DAY+1;G.hp=HPMAX;MON=[];inc('sleeps');const h=byType('house')[0];if(h){G.px=h.x+1.5;G.py=h.y+h.h+.7;unstuckPlayer();}saveLocal();}
+  if(SLEEP.t>2.8){SLEEP=null;toast('☀️ Buongiorno! Hai dormito tutta la notte e la vita è al massimo');}}
+function drawSleep(){if(!SLEEP)return;const t=SLEEP.t,a=t<.8?t/.8:t>2.2?Math.max(0,(2.8-t)/.6):1;ctx.fillStyle=`rgba(8,10,30,${a})`;ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=a;ctx.font='900 30px Nunito,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#ffe9a8';ctx.fillText(SLEEP.done?'☀️ Buongiorno!':'💤 Zzz… buonanotte',W/2,H/2);ctx.globalAlpha=1;}
 function menuHTML(){
-  const h=`<div class="row"><div class="grow"><div class="nm">La tua fattoria</div><div class="sm">Terreni: ${G.owned.length}/${PN*PN} · Recinti: ${pens().length} · Animali: ${G.animals.length} · Strade: ${G.roads.length} · Torce: ${G.torches.length}<br>Fieno raccolto: ${fmt(st('hay'))} · Alberi abbattuti: ${fmt(st('trees'))} · Cuccioli nati: ${fmt(st('births'))} · Pesci: ${fmt(st('fish'))} · Guadagnato: ${fmt(st('earned'))} 💰</div></div></div>
+  const h=`${PANEL.house&&canSleep()?`<button class="btn b wide big" data-a="sleep">😴 Dormi fino al mattino</button><p class="sm" style="margin-top:-4px">Dormendo salti la notte: i mostri spariscono, gli animali sono al sicuro e ti svegli con la vita piena.</p>`:`<p class="sm">😴 Di sera, dalle 18:00, entra in casa (vai davanti alla porta e premi il tasto azione) e dormi fino al mattino: salti la notte e i mostri.</p>`}<div class="row"><div class="grow"><div class="nm">La tua fattoria</div><div class="sm">Terreni: ${G.owned.length}/${PN*PN} · Recinti: ${pens().length} · Animali: ${G.animals.length} · Strade: ${G.roads.length} · Torce: ${G.torches.length}<br>Fieno raccolto: ${fmt(st('hay'))} · Alberi abbattuti: ${fmt(st('trees'))} · Cuccioli nati: ${fmt(st('births'))} · Pesci: ${fmt(st('fish'))} · Guadagnato: ${fmt(st('earned'))} 💰</div></div></div>
   <button class="btn wide" data-a="save">💾 Salva adesso</button>
   <div class="btns" style="margin-bottom:10px"><button class="btn y" data-a="export" style="flex:1">📤 Scarica salvataggio</button><button class="btn y" data-a="import" style="flex:1">📥 Carica salvataggio</button></div>
   <p class="sm" style="margin-top:-4px">Il file di salvataggio è un backup: tienilo sul telefono e ricaricalo se il browser cancella la partita o per giocare su un altro dispositivo.</p>
@@ -953,7 +968,7 @@ function menuHTML(){
   <button class="btn r wide" data-a="reset">${PANEL.confirm?'⚠️ Sicuro? Tocca ancora per cancellare tutto':'🗑️ Nuova partita'}</button>
   <p class="sm">Il gioco si salva da solo ogni pochi secondi${DBREF?' e anche sul tuo account, così lo ritrovi su altri dispositivi':' su questo dispositivo'}.</p>
   <div class="sec">Come si gioca</div>
-  <p class="sm">🌾 L'erba ricresce in circa un minuto: quando ha le punte gialle è pronta da tagliare.<br>🪓 Gli alberi ricrescono dal ceppo in circa 2 minuti.<br>🐾 Metti maschio e femmina della stessa specie nello stesso recinto, riempi la mangiatoia e premi "Fai accoppiare": dopo pochi secondi nascono i cuccioli.<br>🔪 Gli adulti si macellano per la carne, che al Laboratorio diventa salsicce e altro.<br>🧱 I mattoni si comprano solo al Mercato: servono per Fabbrica, stalle e strade.<br>🏚️ La stalla si attacca sopra il recinto: più posti, più carne, più prodotti. Ha 5 livelli.<br>⛏️ In Miniera scendi sotto terra: scava i tunnel nella direzione in cui guardi, scopri cosa c'è solo scavando. Nella terra trovi i vermi, nella roccia carbone e ferro. Esci dalla scala in alto o col tasto Esci.<br>🔩 Il ferro serve per il piccone di ferro e per migliorare Laboratorio e Fabbrica (lavorano più veloci).<br>🦃🐐🦙🦚 Tacchini, capre d'angora, alpaca e pavoni danno piume e lane pregiate.<br>🐝🍎 Alveare e Frutteto producono miele e mele da soli.<br>🌸☀️🍂❄️ Ogni stagione dura 4 giorni: d'inverno nevica e l'erba non cresce.<br>🏜️ Nell'angolo in basso a destra c'è il deserto, con cactus e un'oasi.<br>🐺👤 Di notte escono lupi e ombre: i lupi attaccano gli animali, le ombre soprattutto te. Le torce li tengono lontani (circa 5 caselle), come la luce di casa e del Fienile. Puoi colpirli con il tasto azione, meglio con la spada di ferro.<br>❤️ Se perdi tutta la vita perdi tutto lo zaino: vendi spesso! Mele, miele, biscotti, formaggio e torta ti curano.<br>⚙️ In Fabbrica crei torce (legna + carbone) e la canna da pesca.<br>🎣 Vai davanti a un laghetto con la canna e i vermi per pescare.<br>🔥 Le torce illuminano la fattoria di notte: mettile dallo zaino.<br>🏷️ I cartelli sul confine ti fanno comprare il terreno accanto.</p>`;
+  <p class="sm">🌾 L'erba ricresce in circa un minuto: quando ha le punte gialle è pronta da tagliare.<br>🪓 Gli alberi ricrescono dal ceppo in circa 2 minuti.<br>🐾 Metti maschio e femmina della stessa specie nello stesso recinto, riempi la mangiatoia e premi "Fai accoppiare": dopo pochi secondi nascono i cuccioli.<br>🔪 Gli adulti si macellano per la carne, che al Laboratorio diventa salsicce e altro.<br>🧱 I mattoni si comprano solo al Mercato: servono per Fabbrica, stalle e strade.<br>🏚️ La stalla si attacca sopra il recinto: più posti, più carne, più prodotti. Ha 5 livelli.<br>⛏️ In Miniera scendi sotto terra: scava i tunnel nella direzione in cui guardi, scopri cosa c'è solo scavando. Nella terra trovi i vermi, nella roccia carbone e ferro. Esci dalla scala in alto o col tasto Esci.<br>🔩 Il ferro serve per il piccone di ferro e per migliorare Laboratorio e Fabbrica (lavorano più veloci).<br>🦃🐐🦙🦚 Tacchini, capre d'angora, alpaca e pavoni danno piume e lane pregiate.<br>🐝🍎 Alveare e Frutteto producono miele e mele da soli.<br>🌸☀️🍂❄️ Ogni stagione dura 20 giorni di gioco: d'inverno nevica e l'erba non cresce.<br>🏜️ Nell'angolo in basso a destra c'è il deserto, con cactus e un'oasi.<br>🐺👤 Di notte escono lupi e ombre: i lupi attaccano gli animali, le ombre soprattutto te. Le torce li tengono lontani (circa 5 caselle), come la luce di casa e del Fienile. Puoi colpirli con il tasto azione, meglio con la spada di ferro.<br>❤️ Se perdi tutta la vita perdi tutto lo zaino: vendi spesso! Mele, miele, biscotti, formaggio e torta ti curano.<br>⚙️ In Fabbrica crei torce (legna + carbone) e la canna da pesca.<br>🎣 Vai davanti a un laghetto con la canna e i vermi per pescare.<br>🔥 Le torce illuminano la fattoria di notte: mettile dallo zaino.<br>🏷️ I cartelli sul confine ti fanno comprare il terreno accanto.</p>`;
   return h;
 }
 $('pbody').addEventListener('click',e=>{
@@ -979,8 +994,9 @@ $('pbody').addEventListener('click',e=>{
   else if(a=='cook'){const s=S(PANEL.id),r=RECIPES.find(x=>x.id==v);if(s.q.length<qmax(s)&&Object.entries(r.in).every(([k,n])=>(G.inv[k]||0)>=n)&&!(r.tool&&(G.tools[r.tool]||toolBusy(r.tool)))){for(const [k,n] of Object.entries(r.in))give(k,-n);if(!s.q.length)s.qs=G.t;s.q.push(r.id);sfx('fill');}}
   else if(a=='upg'){const s=S(PANEL.id),lv=s.lv||1;if(lv<3&&canPay(UPG[lv+1])){pay(UPG[lv+1]);s.lv=lv+1;sfx('buy');burst(s.x+1.5,s.y+1,'#ffd45e',24,4);toast(`⭐ ${s.type=='fab'?'Fabbrica':'Laboratorio'} al livello ${s.lv}: lavora più veloce!`);saveLocal();}}
   else if(a=='closeDead'){closePanel();return;}
+  else if(a=='sleep'){if(canSleep()&&PANEL.house)goSleep();return;}
   else if(a=='eat'){const H={mele:2,miele:2,biscotti:3,formaggio:3,torta:6}[v];if(H&&G.inv[v]>0&&(G.hp??HPMAX)<HPMAX){give(v,-1);G.hp=Math.min(HPMAX,(G.hp??HPMAX)+H);sfx('pop');toast(`😋 +${H} ❤️`);}}
-  else if(a=='buyTorch'){if(G.cr>=150){G.cr-=150;give('torcia',1);sfx('buy');toast('🔥 +1 torcia: mettila dallo zaino');}}
+  else if(a=='buyTorch'){if(G.cr>=150){G.cr-=150;give('torcia',1);sfx('buy');toast('🔥 +1 torcia: tocca il pulsante 🔥 in alto per metterla');}}
   else if(a=='cast'){if(performance.now()-(F.pullT||0)>500)fishCast();}
   else if(a=='pull'){fishPull();}
   else if(a=='save'){saveLocal();saveDB(true);toast('💾 Partita salvata');}
@@ -994,6 +1010,7 @@ $('pbody').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-a=
 $('pbody').addEventListener('change',e=>{const el=e.target.closest('[data-ch]');if(!el)return;if(el.dataset.ch=='pen'){PANEL.pen=+el.value;renderPanel();}});
 $('pclose').onclick=closePanel;
 $('panelWrap').addEventListener('pointerdown',e=>{if(e.target.id=='panelWrap')closePanel();});
+$('bTorch').onclick=()=>{if(RUN&&!PANEL&&G.inv.torcia>0&&MINE.st=='out')startPlace('torch');};
 $('bInv').onclick=()=>{if(RUN)openPanel({k:'inv'});};
 $('bMenu').onclick=()=>{if(RUN)openPanel({k:'menu'});};
 $('exitMine').onclick=exitMine;$('pOk').onclick=confirmPlace;$('pNo').onclick=cancelPlace;
@@ -1039,6 +1056,7 @@ document.addEventListener('gesturestart',e=>e.preventDefault());
 const perf=()=>performance.now()/1000;
 let questT=0,saveT=0,dbT=0,uiT=0;
 function update(dt){
+  if(SLEEP){sleepUpdate(dt);return;}
   G.t+=dt;
   // movimento
   let mx=0,my=0;
@@ -1094,7 +1112,7 @@ function update(dt){
   }
   prodUpdate();
   monUpdate(dt);
-  {const h=hourNow();const day=Math.floor(G.t/DAY);if(h>=18.3&&h<19&&G.warn!==day&&G.t>DAY*.5){G.warn=day;toast('🌙 Sta arrivando la notte: escono lupi e ombre! Le torce li tengono lontani');}}
+  {const h=hourNow();const day=Math.floor(G.t/DAY);if(h>=18.3&&h<19&&G.warn!==day&&G.t>DAY*.5){G.warn=day;toast('🌙 Sta arrivando la notte: escono lupi e ombre! Accendi le torce o vai a dormire in casa');}}
   // laboratori e fabbriche
   for(const s of G.structs){if(!s.q||!s.q.length)continue;const r=RECIPES.find(x=>x.id==s.q[0]);
     if(G.t-s.qs>=rt(s,r)){
@@ -1117,9 +1135,11 @@ let lastLbl='';
 function updateHUD(){
   $('hCr').textContent='💰 '+fmt(G.cr);
   {const hp=G.hp??HPMAX;$('hHp').textContent=`❤️ ${hp}/${HPMAX}`;$('hHp').style.background=hp<=3?'#ffd6d6':'';}
+  {const n=G.inv.torcia||0;const b=$('bTorch');b.classList.toggle('hidden',!n);if(n)b.textContent='🔥 '+n;}
   $('hQuick').textContent=`🌾 ${fmt(G.inv.fieno||0)} · 🪵 ${fmt(G.inv.legna||0)}${G.inv.mattoni?` · 🧱 ${fmt(G.inv.mattoni)}`:''}`;
   const p=(G.t%DAY)/DAY,hr=(6+p*24)%24,night=hr>=19.5||hr<5.5;
-  $('hClock').textContent=`${SEAI[season()]} ${SEAS[season()]} · ${night?'🌙':''}${String(Math.floor(hr)).padStart(2,'0')}:${String(Math.floor((hr%1)*6)*10).padStart(2,'0')}`;
+  $('hClock').textContent=`${SEAI[season()]} ${W<520?'':SEAS[season()]+' · '}${night?'🌙':''}${String(Math.floor(hr)).padStart(2,'0')}:${String(Math.floor((hr%1)*6)*10).padStart(2,'0')}`;
+  {const tb=$('top').getBoundingClientRect().bottom;$('quest').style.top=(tb+8)+'px';}
   const q=QUESTS[G.quest];$('quest').innerHTML=q?`🎯 <b>Obiettivo ${G.quest+1}/${QUESTS.length}</b> · ${q.t} <b>(+${fmt(q.r)}💰)</b>`:'🏆 Hai completato tutti gli obiettivi: la fattoria è tua!';
   const [ic,lb]=MINE.st=='under'?(TARGET?TARGET.k=='udig'?['⛏️',['Scava terra','Scava pietra','Scava pietra dura','Scava carbone','Scava ferro'][TARGET.t]||'Scava']:TARGET.k=='uexit'?['🪜','Esci dalla miniera']:['🪨','Roccia indistruttibile']:['⛏️','Girati verso la roccia']):MINE.st!='out'?['⛏️','…']:targetLabel(TARGET);const key=ic+lb+(PL?'p'+PL.type:'');
   if(key!==lastLbl){lastLbl=key;if(PL){$('actI').textContent='✔';$('actL').textContent=PL.type=='road'?'Posa pezzo':PL.type=='torch'?'Metti torcia':PL.type=='move'?'Sposta qui':'Costruisci qui';actB.classList.remove('off');}else{$('actI').textContent=ic;$('actL').textContent=lb;actB.classList.toggle('off',!TARGET||TARGET.k=='urock');}}
@@ -1210,7 +1230,7 @@ function render(){
   if(deadFlash>0){ctx.fillStyle=`rgba(200,0,0,${deadFlash})`;ctx.fillRect(0,0,W,H);deadFlash=Math.max(0,deadFlash-.02);}
   // testi
   for(const f of floats){if(f.u)continue;ctx.globalAlpha=Math.min(1,f.life);ctx.font=`900 ${Math.round(ts*.42)}px Nunito,sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineWidth=4;ctx.strokeStyle='rgba(60,35,10,.8)';ctx.strokeText(f.t,sx(f.x),sy(f.y));ctx.fillStyle=f.c;ctx.fillText(f.t,sx(f.x),sy(f.y));ctx.globalAlpha=1;}
-  drawJoy();drawFade();
+  drawJoy();drawFade();drawSleep();
 }
 function plLabel(){const t=PL.type;if(BUILD[t])return `${BUILD[t].e} ${BUILD[t].n}`;if(t=='road')return '🛣️';if(t=='torch')return '🔥';return '↔️ Recinto';}
 function drawRoad(x,y,i,X,Y,T){
