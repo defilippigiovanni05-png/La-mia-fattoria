@@ -654,7 +654,7 @@ function playerDies(){
 }
 function hitMonster(m){
   const dmg=G.tools.spada?2:1;m.hp-=dmg;m.hit=time;swing=.3;swingTool=G.tools.spada?'spada':'ascia';sfx('chop');burst(m.x,m.y-.4,m.k=='ombra'?'#6a3a9a':'#888',6,2);
-  const ax=m.x-G.px,ay=m.y-G.py,al=Math.hypot(ax,ay)||1;m.x+=ax/al*.7;m.y+=ay/al*.7;m.at=0;
+  const ax=m.x-G.px,ay=m.y-G.py,al=Math.hypot(ax,ay)||1;m.x+=ax/al*.25;m.y+=ay/al*.25;m.at=Math.max(0,m.at-.3);
   if(m.hp<=0){const D=MONS[m.k];give(D.drop,1);inc('mkills');floatTxt(m.x,m.y-.8,`+1 ${ITEMS[D.drop].i}`,'#e8d0ff');burst(m.x,m.y-.3,m.k=='ombra'?'#3a1a5a':'#6b6b6b',18,3);sfx('fall');}
 }
 function drawMonster(m){
