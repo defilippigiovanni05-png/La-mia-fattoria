@@ -597,7 +597,9 @@ function litAt(x,y,extra=0){
   for(const s of G.structs){if(s.type=='house'&&Math.hypot(s.x+1.5-x,s.y+2-y)<3.6+extra)return true;if(s.type=='pen'&&s.barn>=4&&x>s.x-1&&x<s.x+s.w+1&&y>s.y-4&&y<s.y+s.h+1)return true;}
   return false;
 }
-const penSafe=s=>s.barn>=4||litAt(s.x+s.w/2,s.y+s.h/2,1.5);
+function torchNearRect(x,y,w,h,r){for(const i of G.torches){const tx=i%MW+.5,ty=Math.floor(i/MW)+.5;const dx=Math.max(x-tx,0,tx-(x+w)),dy=Math.max(y-ty,0,ty-(y+h));if(dx*dx+dy*dy<=r*r)return true;}return false;}
+const penSafe=s=>{const f=fp(s);return s.barn>=4||torchNearRect(f.x,f.y,f.w,f.h,3.5)||litAt(s.x+s.w/2,s.y+s.h/2,1.5);};
+function nearSafePen(x,y){for(const s of pens()){if(!penSafe(s))continue;const f=fp(s);if(x>f.x-2.5&&x<f.x+f.w+2.5&&y>f.y-2.5&&y<f.y+f.h+2.5)return true;}return false;}
 function spawnMonster(){
   const cap=Math.min(10,1+Math.floor(G.owned.length/2)+Math.min(3,pens().length));if(MON.length>=cap)return;
   for(let k=0;k<30;k++){const p=G.owned[Math.floor(Math.random()*G.owned.length)];const x=(p%PN)*PS+Math.random()*PS,y=Math.floor(p/PN)*PS+Math.random()*PS;
@@ -609,7 +611,7 @@ function monTarget(m){
   const pv=MINE.st=='out'&&!litAt(G.px,G.py),dp=Math.hypot(G.px-m.x,G.py-m.y);
   let pen=null,bd=1e9;for(const s of pens()){if(penSafe(s))continue;if(!penAnimals(s.id).some(a=>!a.inB))continue;const d=Math.hypot(s.x+3-m.x,s.y+3-m.y);if(d<bd){bd=d;pen=s;}}
   if(m.k=='lupo'){if(pen)return {pen};if(pv&&dp<10)return {pl:1};}
-  else{if(pv&&dp<12)return {pl:1};if(pen)return {pen};if(pv)return {pl:1};}
+  else{if(pv)return {pl:1};}
   return null;
 }
 function monUpdate(dt){
@@ -618,7 +620,7 @@ function monUpdate(dt){
   for(const m of MON){
     const D=MONS[m.k];
     if(!night||m.st=='flee'){m.fade+=dt*(night?.17:.7);const ax=m.x-G.px,ay=m.y-G.py,al=Math.hypot(ax,ay)||1;m.x+=ax/al*D.sp*.8*dt;m.y+=ay/al*D.sp*.8*dt;m.fx=ax>0?1:-1;continue;}
-    if(litAt(m.x,m.y)){m.st='flee';continue;}
+    if(litAt(m.x,m.y)||(m.k=='lupo'&&nearSafePen(m.x,m.y))){m.st='flee';continue;}
     m.rt-=dt;if(m.rt<=0||!m.tg){m.tg=monTarget(m);m.rt=1;}
     let tx,ty,victim=null;
     if(m.tg&&m.tg.pl){tx=G.px;ty=G.py;}
@@ -628,7 +630,7 @@ function monUpdate(dt){
       if(victim){tx=victim.x;ty=victim.y;}else{tx=s.x+3;ty=s.y+3;}}
     else{if(!m.wx||Math.hypot(m.wx-m.x,m.wy-m.y)<.3){m.wx=m.x+(Math.random()-.5)*6;m.wy=m.y+(Math.random()-.5)*6;}tx=m.wx;ty=m.wy;}
     const dx=tx-m.x,dy=ty-m.y,d=Math.hypot(dx,dy);
-    if(d>.35){const v=D.sp*dt*(m.tg?1:.5);const nx=m.x+dx/d*Math.min(v,d),ny=m.y+dy/d*Math.min(v,d);if(!litAt(nx,ny)&&inMap(Math.floor(nx),Math.floor(ny))){m.x=nx;m.y=ny;}else{m.wx=m.x-dx/d*3;m.wy=m.y-dy/d*3;m.tg=null;m.rt=2;}m.fx=dx>0?1:-1;}
+    if(d>.35){const v=D.sp*dt*(m.tg?1:.5);const nx=m.x+dx/d*Math.min(v,d),ny=m.y+dy/d*Math.min(v,d);if(!litAt(nx,ny)&&!(m.k=='lupo'&&nearSafePen(nx,ny)&&!nearSafePen(m.x,m.y))&&inMap(Math.floor(nx),Math.floor(ny))){m.x=nx;m.y=ny;}else{m.wx=m.x-dx/d*3;m.wy=m.y-dy/d*3;m.tg=null;m.rt=2;}m.fx=dx>0?1:-1;}
     // attacco animale
     if(victim&&Math.hypot(victim.x-m.x,victim.y-m.y)<.5){m.at+=dt;if(m.at>1.3){m.at=0;const s=S(victim.pen);G.animals=G.animals.filter(a=>a!==victim);inc('lost');burst(victim.x,victim.y-.3,'#c0392b',14,2.5);sfx('kill');
       toast(`${m.k=='lupo'?'🐺 Un lupo':'👤 Un\u2019ombra'} ha ucciso ${aName(victim).toLowerCase()} nel Recinto ${s?s.num:''}! Metti una torcia vicino al recinto`);if(m.k=='lupo')m.st='flee';m.tg=null;}}
@@ -968,7 +970,7 @@ function menuHTML(){
   <button class="btn r wide" data-a="reset">${PANEL.confirm?'⚠️ Sicuro? Tocca ancora per cancellare tutto':'🗑️ Nuova partita'}</button>
   <p class="sm">Il gioco si salva da solo ogni pochi secondi${DBREF?' e anche sul tuo account, così lo ritrovi su altri dispositivi':' su questo dispositivo'}.</p>
   <div class="sec">Come si gioca</div>
-  <p class="sm">🌾 L'erba ricresce in circa un minuto: quando ha le punte gialle è pronta da tagliare.<br>🪓 Gli alberi ricrescono dal ceppo in circa 2 minuti.<br>🐾 Metti maschio e femmina della stessa specie nello stesso recinto, riempi la mangiatoia e premi "Fai accoppiare": dopo pochi secondi nascono i cuccioli.<br>🔪 Gli adulti si macellano per la carne, che al Laboratorio diventa salsicce e altro.<br>🧱 I mattoni si comprano solo al Mercato: servono per Fabbrica, stalle e strade.<br>🏚️ La stalla si attacca sopra il recinto: più posti, più carne, più prodotti. Ha 5 livelli.<br>⛏️ In Miniera scendi sotto terra: scava i tunnel nella direzione in cui guardi, scopri cosa c'è solo scavando. Nella terra trovi i vermi, nella roccia carbone e ferro. Esci dalla scala in alto o col tasto Esci.<br>🔩 Il ferro serve per il piccone di ferro e per migliorare Laboratorio e Fabbrica (lavorano più veloci).<br>🦃🐐🦙🦚 Tacchini, capre d'angora, alpaca e pavoni danno piume e lane pregiate.<br>🐝🍎 Alveare e Frutteto producono miele e mele da soli.<br>🌸☀️🍂❄️ Ogni stagione dura 20 giorni di gioco: d'inverno nevica e l'erba non cresce.<br>🏜️ Nell'angolo in basso a destra c'è il deserto, con cactus e un'oasi.<br>🐺👤 Di notte escono lupi e ombre: i lupi attaccano gli animali, le ombre soprattutto te. Le torce li tengono lontani (circa 5 caselle), come la luce di casa e del Fienile. Puoi colpirli con il tasto azione, meglio con la spada di ferro.<br>❤️ Se perdi tutta la vita perdi tutto lo zaino: vendi spesso! Mele, miele, biscotti, formaggio e torta ti curano.<br>⚙️ In Fabbrica crei torce (legna + carbone) e la canna da pesca.<br>🎣 Vai davanti a un laghetto con la canna e i vermi per pescare.<br>🔥 Le torce illuminano la fattoria di notte: mettile dallo zaino.<br>🏷️ I cartelli sul confine ti fanno comprare il terreno accanto.</p>`;
+  <p class="sm">🌾 L'erba ricresce in circa un minuto: quando ha le punte gialle è pronta da tagliare.<br>🪓 Gli alberi ricrescono dal ceppo in circa 2 minuti.<br>🐾 Metti maschio e femmina della stessa specie nello stesso recinto, riempi la mangiatoia e premi "Fai accoppiare": dopo pochi secondi nascono i cuccioli.<br>🔪 Gli adulti si macellano per la carne, che al Laboratorio diventa salsicce e altro.<br>🧱 I mattoni si comprano solo al Mercato: servono per Fabbrica, stalle e strade.<br>🏚️ La stalla si attacca sopra il recinto: più posti, più carne, più prodotti. Ha 5 livelli.<br>⛏️ In Miniera scendi sotto terra: scava i tunnel nella direzione in cui guardi, scopri cosa c'è solo scavando. Nella terra trovi i vermi, nella roccia carbone e ferro. Esci dalla scala in alto o col tasto Esci.<br>🔩 Il ferro serve per il piccone di ferro e per migliorare Laboratorio e Fabbrica (lavorano più veloci).<br>🦃🐐🦙🦚 Tacchini, capre d'angora, alpaca e pavoni danno piume e lane pregiate.<br>🐝🍎 Alveare e Frutteto producono miele e mele da soli.<br>🌸☀️🍂❄️ Ogni stagione dura 20 giorni di gioco: d'inverno nevica e l'erba non cresce.<br>🏜️ Nell'angolo in basso a destra c'è il deserto, con cactus e un'oasi.<br>🐺👤 Di notte escono lupi e ombre: i lupi attaccano gli animali (ma non si avvicinano ai recinti con una torcia vicino), le ombre attaccano solo te. Le torce li tengono lontani (circa 5 caselle), come la luce di casa e del Fienile. Puoi colpirli con il tasto azione, meglio con la spada di ferro.<br>❤️ Se perdi tutta la vita perdi tutto lo zaino: vendi spesso! Mele, miele, biscotti, formaggio e torta ti curano.<br>⚙️ In Fabbrica crei torce (legna + carbone) e la canna da pesca.<br>🎣 Vai davanti a un laghetto con la canna e i vermi per pescare.<br>🔥 Le torce illuminano la fattoria di notte: mettile dallo zaino.<br>🏷️ I cartelli sul confine ti fanno comprare il terreno accanto.</p>`;
   return h;
 }
 $('pbody').addEventListener('click',e=>{
