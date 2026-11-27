@@ -486,6 +486,8 @@ function findTarget(){
   const wx=Math.floor(G.px+DIR.x*.9),wy=Math.floor(G.py-.1+DIR.y*.9);
   if(tool=='canna'){if(inMap(wx,wy)&&TL[wy*MW+wx]==2&&ownedTile(wx,wy))return {k:'fish',x:wx,y:wy};return null;}
   if(tool!='accetta')return null;
+  for(const i of G.torches){const x=i%MW+.5,y=Math.floor(i/MW)+.6;const d=Math.hypot(x-G.px,y-G.py);if(d<1.3&&d<bd){bd=d;best={k:'torch',i};}}
+  if(best)return best;
   const ptx=Math.floor(G.px),pty=Math.floor(G.py);
   for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++){const x=ptx+dx,y=pty+dy;if(!ownedTile(x,y))continue;const i=y*MW+x;if(TL[i]!=1||tState(i)!=2)continue;
     const d=Math.hypot(fx-(x+.5),fy-(y+.5));const dp=Math.hypot(G.px-(x+.5),G.py-(y+.7));if(dp<1.35&&d<bd){bd=d;best={k:'tree',x,y,i};}}
@@ -502,6 +504,7 @@ function targetLabel(t){
   if(t.k=='mon')return ['⚔️',`Colpisci ${MONS[t.m.k].n.toLowerCase()}`];
   if(t.k=='grass')return ['🌾',`Taglia erba (${t.n})`];
   if(t.k=='tree')return ['🪓','Abbatti albero'];
+  if(t.k=='torch')return ['🔥','Raccogli torcia'];
   if(t.k=='fish')return ['🎣',G.tools.canna?`Pesca (${G.inv.verme||0} 🪱)`:'Pesca: serve la canna'];
   if(t.k=='sign'){const p=plotPrice();return ['🏷️',`Compra terreno ${fmt(p)}💰`];}
   const s=t.s;
@@ -517,6 +520,7 @@ function targetLabel(t){
 }
 const repeatable=t=>t&&(t.k=='grass'||t.k=='tree'||t.k=='mon'||t.k=='gun');
 function doAction(t){
+  if(t.k=='torch'){G.torches=G.torches.filter(i=>i!==t.i);rebuildMisc();give('torcia',1);floatTxt(t.i%MW+.5,Math.floor(t.i/MW)-.3,'+1 🔥','#ffd08a');burst(t.i%MW+.5,Math.floor(t.i/MW)+.2,'#ffb347',8,2);sfx('pop');saveLocal();return;}
   if(t.k=='gun'){fireGun(autoAim());return;}
   if(t.k=='eat'){const hp=G.hp??HPMAX;if(hp>=HPMAX){toast('❤️ '+HPMAX+'/'+HPMAX);return;}give(G.food,-1);G.hp=Math.min(HPMAX,hp+FOODS[G.food]);sfx('pop');floatTxt(G.px,G.py-1.1,`+${FOODS[G.food]} ❤️`,'#ff8a8a');renderHotbar();return;}
   if(t.k=='mon'){hitMonster(t.m);return;}
@@ -685,7 +689,7 @@ function drawOrchard(s){
 function drawBadge(s){const X=sx(s.x+s.w/2),Y=sy(s.y)-ts*.55;ctx.font=`${Math.round(ts*.26)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('⭐'.repeat((s.lv||1)-1),X,Y);}
 /* ---- mostri notturni ---- */
 const HPMAX=10;let MON=[],hurtT=-99,lastSpawn=0,deadFlash=0;
-const MONS={lupo:{n:'Lupo',hp:8,sp:2.9,dmg:2,cd:.85,drop:'pelliccia'},ombra:{n:'Ombra',hp:12,sp:1.9,dmg:3,cd:1,drop:'essenza'}};
+const MONS={lupo:{n:'Lupo',hp:8,sp:2.9,dmg:2,cd:.85,drop:'pelliccia'},ombra:{n:'Ombra',hp:12,sp:1.9,dmg:3,cd:1.1,drop:'essenza'}};
 const hourNow=()=>(6+(G.t%DAY)/DAY*24)%24;
 const isNight=()=>{const h=hourNow();return h>=19.5||h<5.3;};
 function litAt(x,y,extra=0){
@@ -731,7 +735,7 @@ function monUpdate(dt){
     if(victim&&Math.hypot(victim.x-m.x,victim.y-m.y)<.5){m.at+=dt;if(m.at>1.3){m.at=0;const s=S(victim.pen);G.animals=G.animals.filter(a=>a!==victim);inc('lost');burst(victim.x,victim.y-.3,'#c0392b',14,2.5);sfx('kill');
       toast(`${m.k=='lupo'?'🐺 Un lupo':'👤 Un\u2019ombra'} ha ucciso ${aName(victim).toLowerCase()} nel Recinto ${s?s.num:''}! Metti una torcia vicino al recinto`);if(m.k=='lupo')m.st='flee';m.tg=null;}}
     // attacco giocatore
-    else if(m.tg&&m.tg.pl&&d<.75&&MINE.st=='out'&&!PANEL){m.at+=dt;if(m.at>D.cd){m.at=0;hurtPlayer(D.dmg,m);}}
+    else if(m.tg&&m.tg.pl&&d<1.05&&MINE.st=='out'&&!PANEL){m.at+=dt;if(m.at>D.cd){m.at=0;hurtPlayer(D.dmg,m);}}
     else m.at=Math.max(0,m.at-dt);
   }
   MON=MON.filter(m=>m.hp>0&&m.fade<1);
@@ -740,8 +744,8 @@ function monUpdate(dt){
   if(G.hp<HPMAX&&G.t-hurtT>8){G.hpr=(G.hpr||0)+dt;if(G.hpr>6){G.hpr=0;G.hp++;}}
 }
 function hurtPlayer(n,m){
-  G.hp=Math.max(0,(G.hp??HPMAX)-n);hurtT=G.t;deadFlash=.35;sfx('hurt');floatTxt(G.px,G.py-1.1,`-${n} ❤️`,'#ff6b6b');
-  const ax=G.px-m.x,ay=G.py-m.y,al=Math.hypot(ax,ay)||1;const nx=G.px+ax/al*.5,ny=G.py+ay/al*.5;if(canGo(nx,ny,G.px,G.py)){G.px=nx;G.py=ny;}
+  G.hp=Math.max(0,(G.hp??HPMAX)-n);hurtT=G.t;deadFlash=.35;sfx('hurt');floatTxt(G.px,G.py-1.1,`-${n} ❤️`,'#ff6b6b');m.lunge=time;
+  const ax=G.px-m.x,ay=G.py-m.y,al=Math.hypot(ax,ay)||1;const nx=G.px+ax/al*.3,ny=G.py+ay/al*.3;if(canGo(nx,ny,G.px,G.py)){G.px=nx;G.py=ny;}
   if(G.hp<=0)playerDies();
 }
 function playerDies(){
@@ -750,13 +754,16 @@ function playerDies(){
   G.hp=HPMAX;for(const m of MON)m.st='flee';ACT.held=false;JOY.active=false;
   openPanel({k:'dead',n:lost});saveLocal();
 }
+let atkReady=0;const ATK_CD=.6;
 function hitMonster(m){
-  const dmg=G.tools.spada?2:1;m.hp-=dmg;m.hit=time;swing=.3;swingTool='spada';sfx('chop');burst(m.x,m.y-.4,m.k=='ombra'?'#6a3a9a':'#888',6,2);
+  if(time<atkReady)return;atkReady=time+ATK_CD;
+  const dmg=G.tools.spada?3:2;m.hp-=dmg;m.hit=time;swing=.3;swingTool='spada';sfx('chop');burst(m.x,m.y-.4,m.k=='ombra'?'#6a3a9a':'#888',6,2);
   const ax=m.x-G.px,ay=m.y-G.py,al=Math.hypot(ax,ay)||1;m.x+=ax/al*.12;m.y+=ay/al*.12;
   if(m.hp<=0){const D=MONS[m.k];give(D.drop,1);inc('mkills');floatTxt(m.x,m.y-.8,`+1 ${ITEMS[D.drop].i}`,'#e8d0ff');burst(m.x,m.y-.3,m.k=='ombra'?'#3a1a5a':'#6b6b6b',18,3);sfx('fall');}
 }
 function drawMonster(m){
-  const X=sx(m.x),Y=sy(m.y),u=ts,al=1-m.fade,fl=time-m.hit<.15;
+  const lg=m.lunge&&time-m.lunge<.2?Math.sin((time-m.lunge)/.2*Math.PI)*.35:0,lx=(G.px-m.x),ly=(G.py-m.y),ll=Math.hypot(lx,ly)||1;
+  const X=sx(m.x+lx/ll*lg),Y=sy(m.y+ly/ll*lg),u=ts,al=1-m.fade,fl=time-m.hit<.15;
   ctx.save();ctx.globalAlpha=al;
   if(m.k=='lupo'){
     ell(X,Y,u*.34,u*.1,'rgba(0,0,0,.25)');ctx.translate(X,Y);ctx.scale(m.fx,1);const lg=Math.sin(time*14)*u*.05;
@@ -1204,7 +1211,7 @@ function update(dt){
     if(TARGET){if(!repeatable(TARGET)){if(ACT.first)doAction(TARGET);ACT.held=false;}else{doAction(TARGET);ACT.timer=TARGET.k=='gun'?.1:TARGET.k=='mon'?.38:TARGET.k=='tree'?.32:TARGET.k=='s'?.55:.26;}}
     else ACT.timer=.08;ACT.first=false;}}
   if(ACT.rel&&!ACT.first){ACT.held=false;ACT.rel=false;}
-  gunCd=Math.max(0,gunCd-dt);shake=Math.max(0,shake-dt);animalVoices(dt);
+  actB.style.filter=(curTool()=='spada'&&time<atkReady)||(curTool()=='fucile'&&gunCd>0)?'brightness(.7)':'';gunCd=Math.max(0,gunCd-dt);shake=Math.max(0,shake-dt);animalVoices(dt);
   // animali
   for(const a of G.animals){
     const s=S(a.pen);if(!s)continue;const D=SP[a.sp];
@@ -1332,7 +1339,7 @@ function render(){
     else{ctx.font=`${Math.round(ts*.8)}px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=.5;ctx.fillText('🔒',X+PS*ts/2,Y+PS*ts/2);ctx.globalAlpha=1;}}
   // evidenzia bersaglio
   if(TARGET&&TARGET.k!='gun'&&TARGET.k!='eat'){let rx,ry,rw,rh;const t=TARGET;
-    if(t.k=='grass'){rx=t.x-t.r;ry=t.y-t.r;rw=rh=t.r*2+1;}else if(t.k=='tree'){rx=t.x;ry=t.y-.6;rw=1;rh=1.6;}else if(t.k=='sign'){rx=t.sg.x;ry=t.sg.y;rw=rh=1;}else if(t.k=='fish'){rx=t.x;ry=t.y;rw=rh=1;}else if(t.k=='mon'){rx=t.m.x-.55;ry=t.m.y-1.1;rw=1.1;rh=1.25;}else{const f=fp(t.s);const up=t.s.type=='pen'?(t.s.barn?.8:0):.6;rx=f.x;ry=f.y-up;rw=f.w;rh=f.h+up;}
+    if(t.k=='grass'){rx=t.x-t.r;ry=t.y-t.r;rw=rh=t.r*2+1;}else if(t.k=='tree'){rx=t.x;ry=t.y-.6;rw=1;rh=1.6;}else if(t.k=='torch'){rx=t.i%MW;ry=Math.floor(t.i/MW)-.4;rw=1;rh=1.4;}else if(t.k=='sign'){rx=t.sg.x;ry=t.sg.y;rw=rh=1;}else if(t.k=='fish'){rx=t.x;ry=t.y;rw=rh=1;}else if(t.k=='mon'){rx=t.m.x-.55;ry=t.m.y-1.1;rw=1.1;rh=1.25;}else{const f=fp(t.s);const up=t.s.type=='pen'?(t.s.barn?.8:0):.6;rx=f.x;ry=f.y-up;rw=f.w;rh=f.h+up;}
     ctx.strokeStyle=`rgba(255,255,255,${.55+Math.sin(time*6)*.3})`;ctx.lineWidth=Math.max(2,ts*.06);ctx.setLineDash([ts*.18,ts*.12]);rr(sx(rx)+2,sy(ry)+2,rw*ts-4,rh*ts-4,ts*.15);ctx.stroke();ctx.setLineDash([]);}
   // fantasma costruzione
   if(PL){const ok=placeValid();ctx.fillStyle=ok?'rgba(110,220,90,.38)':'rgba(230,70,60,.38)';rr(sx(PL.x),sy(PL.y),PL.w*ts,PL.h*ts,ts*.15);ctx.fill();ctx.strokeStyle=ok?'#d8ffc4':'#ffc1bb';ctx.lineWidth=3;ctx.setLineDash([8,6]);ctx.stroke();ctx.setLineDash([]);
