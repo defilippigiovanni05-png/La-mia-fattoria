@@ -453,7 +453,7 @@ function animalVoices(dt){
   const an=[];for(const s of near)for(const a of penAnimals(s.id))if(!a.inB)an.push(a);if(!an.length)return;
   const a=an[Math.floor(Math.random()*an.length)];animalSound(a.sp,isAdult(a));parts.push({x:a.x,y:a.y-.9,vx:0,vy:-.6,g:0,life:1,col:'note',sz:.25});
 }
-const SOUND_FILES={mucca:'sounds/mucca.mp3'};const SBUF={};
+const SOUND_FILES={mucca:'sounds/mucca.mp3',pecora:'sounds/pecora.mp3'};const SBUF={};
 function loadSounds(){if(!AC)return;for(const [k,u] of Object.entries(SOUND_FILES)){if(SBUF[k])continue;SBUF[k]='load';fetch(u).then(r=>r.ok?r.arrayBuffer():Promise.reject()).then(b=>new Promise((ok,ko)=>AC.decodeAudioData(b,ok,ko))).then(buf=>{SBUF[k]=buf;}).catch(()=>{delete SBUF[k];});}}
 function playBuf(buf,rate,vol){const src=AC.createBufferSource(),g=AC.createGain();src.buffer=buf;src.playbackRate.value=rate;g.gain.value=vol;src.connect(g);g.connect(AC.destination);src.start();}
 function animalSound(sp,adult){
